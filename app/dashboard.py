@@ -33,7 +33,7 @@ def get_live_weather(city="El+Paso"):
 # --- Model Training ---
 def train_model(data_path):
     from sklearn.ensemble import HistGradientBoostingRegressor
-    
+
     df = pd.read_csv(data_path)
     df.columns = df.columns.str.strip()
 
@@ -47,7 +47,7 @@ def train_model(data_path):
         'Season_Num',
         'Population_Density'
     ]
-    
+
     X = df[feature_cols]
     y = df['Usage (GAL)']
 
@@ -130,7 +130,7 @@ elif page == "View Forecast":
         df = pd.read_csv(data_source)
         df.columns = df.columns.str.strip()
         df['ZIP'] = df['ZIP'].astype(str).str.zfill(5)
-        
+
         if 'Billing Date' in df.columns:
             df['Billing Date'] = pd.to_datetime(df['Billing Date'], errors='coerce')
 
@@ -150,13 +150,13 @@ elif page == "View Forecast":
             st.metric(label="Rainfall", value=f"{rainfall_now} in")
 
             # --- Prepare Input for Model ---
-            season_mapping = {"Winter":0, "Spring":1, "Summer":2, "Fall":3}
+            season_mapping = {"Winter": 0, "Spring": 1, "Summer": 2, "Fall": 3}
             current_month = datetime.now().month
-            if current_month in [12,1,2]:
+            if current_month in [12, 1, 2]:
                 season = "Winter"
-            elif current_month in [3,4,5]:
+            elif current_month in [3, 4, 5]:
                 season = "Spring"
-            elif current_month in [6,7,8]:
+            elif current_month in [6, 7, 8]:
                 season = "Summer"
             else:
                 season = "Fall"
@@ -179,11 +179,23 @@ elif page == "View Forecast":
             st.subheader(f"💧 Predicted Water Usage for ZIP {selected_zip}")
             st.metric(label="Predicted Usage (Gallons)", value=f"{predicted_usage:,.0f} Gallons")
 
-            # --- Plot ---
-            st.subheader("📊 Usage Visualization")
-            st.bar_chart(pd.DataFrame({
-                'Predicted Usage (Gallons)': [predicted_usage]
-            }, index=[selected_zip]))
+            # --- Historical Usage Trend for Selected ZIP ---
+            st.subheader(f"📊 Historical Water Usage Trend for ZIP {selected_zip}")
+
+            df_zip = df[df['ZIP'] == selected_zip]
+            df_zip = df_zip.dropna(subset=['Billing Date'])
+            df_zip['MonthYear'] = df_zip['Billing Date'].dt.to_period('M').astype(str)
+
+            usage_trend = df_zip.groupby('MonthYear')['Usage (GAL)'].sum().reset_index()
+
+            if not usage_trend.empty:
+                usage_trend = usage_trend.sort_values('MonthYear')
+                st.line_chart(
+                    data=usage_trend.set_index('MonthYear'),
+                    y='Usage (GAL)'
+                )
+            else:
+                st.warning("No historical data available for this ZIP code.")
 
             # --- Infrastructure Advisory ---
             st.subheader("🏛️ Infrastructure Advisory Based on Predicted Usage")
