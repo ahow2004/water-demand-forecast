@@ -4,8 +4,9 @@ import numpy as np
 import os
 import requests
 import pickle
-from datetime import datetime
+from datetime import datetime, timezone
 from dateutil.relativedelta import relativedelta
+
 
 # --- Setup Upload Directory ---
 UPLOAD_FOLDER = "uploads/"
@@ -16,19 +17,47 @@ CLEAN_BASELINE_FILE = "data/cleaned/water_data_cleaned.csv"
 MODEL_FILE = "models/forecast_model.pkl"
 
 # --- Weather Pull ---
-def get_live_weather(city="El+Paso"):
-    url = f"https://wttr.in/{city}?format=%t|%h|%p"
+
+
+def get_live_weather():
     try:
+        # El Paso coordinates (latitude and longitude)
+        url = (
+            "https://api.open-meteo.com/v1/forecast"
+            "?latitude=31.7619"
+            "&longitude=-106.4850"
+            "&hourly=temperature_2m,relative_humidity_2m,precipitation"
+            "&timezone=America/Denver"
+        )
+
         response = requests.get(url)
         if response.status_code == 200:
-            temp, humidity, rainfall = response.text.strip().split("|")
-            temp = int(temp.replace("+", "").replace("°C", "").replace("°F", ""))
-            humidity = int(humidity.replace("%", ""))
-            rainfall = float(rainfall.replace("mm", ""))
-            return temp, humidity, rainfall
+            data = response.json()
+            hourly = data['hourly']
+
+            # Find current hour in the hourly data
+            now = datetime.now(timezone.utc).astimezone()
+            current_time_str = now.strftime("%Y-%m-%dT%H:00")  # Format example: 2025-04-26T15:00
+
+            if current_time_str in hourly['time']:
+                idx = hourly['time'].index(current_time_str)
+                
+                temp_c = hourly['temperature_2m'][idx]
+                temp_f = round(temp_c * 9/5 + 32)
+                humidity = hourly['relative_humidity_2m'][idx]
+                rainfall = hourly['precipitation'][idx]  # In mm
+
+                rainfall_inches = round(rainfall / 25.4, 3)  # Convert mm to inches
+
+                return temp_f, humidity, rainfall_inches
+            else:
+                print("Current time not found in hourly data.")
+                return None
         else:
+            print(f"Bad response: {response.status_code}")
             return None
-    except Exception:
+    except Exception as e:
+        print(f"Error fetching weather: {e}")
         return None
 
 # --- Model Training ---
