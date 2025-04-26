@@ -85,7 +85,8 @@ page = st.sidebar.selectbox("Go to", ["Home", "Upload New Data", "View Forecast"
 
 # --- Pages ---
 if page == "Home":
-    st.title("🚰 El Paso Water Demand Forecast Dashboard")
+    st.image("app/static/epwater_logo.png", width=300)
+    st.title("El Paso Water Demand Forecast Dashboard")
     st.write("""
     Welcome!  
     - Upload new water usage data  
