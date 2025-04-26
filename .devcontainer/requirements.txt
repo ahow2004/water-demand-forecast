@@ -1,7 +1,0 @@
-pandas
-scikit-learn
-requests
-python-dotenv
-streamlit
-joblib
-matplotlib
