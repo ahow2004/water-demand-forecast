@@ -202,7 +202,8 @@ elif page == "View Forecast":
                 last_month = datetime.now().replace(day=1)
                 future_months = [(last_month + relativedelta(months=i)).strftime("%Y-%m") for i in range(1, 7)]
 
-                future_preds = [model.predict(X_live)[0]] * 6
+                base_prediction = model.predict(X_live)[0]
+                future_preds = [base_prediction * np.random.uniform(0.95, 1.05) for _ in range(6)]
 
                 future_df = pd.DataFrame({
                     'MonthYear': future_months,
