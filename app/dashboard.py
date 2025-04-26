@@ -26,7 +26,7 @@ def get_live_weather():
             "https://api.open-meteo.com/v1/forecast"
             "?latitude=31.7619"
             "&longitude=-106.4850"
-            "&hourly=temperature_2m,relative_humidity_2m,precipitation"
+            "&current=temperature_2m,relative_humidity_2m,precipitation"
             "&timezone=America/Denver"
         )
 
