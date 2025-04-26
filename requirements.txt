@@ -6,3 +6,4 @@ streamlit
 joblib
 matplotlib
 numpy
+python-dateutil
