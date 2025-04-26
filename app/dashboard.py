@@ -5,6 +5,7 @@ import os
 import requests
 import pickle
 from datetime import datetime
+from dateutil.relativedelta import relativedelta
 
 # --- Setup Upload Directory ---
 UPLOAD_FOLDER = "uploads/"
@@ -131,8 +132,16 @@ elif page == "View Forecast":
         df.columns = df.columns.str.strip()
         df['ZIP'] = df['ZIP'].astype(str).str.zfill(5)
 
+        # --- Determine time field ---
         if 'Billing Date' in df.columns:
             df['Billing Date'] = pd.to_datetime(df['Billing Date'], errors='coerce')
+            df['MonthYear'] = df['Billing Date'].dt.to_period('M').astype(str)
+            billing_date_exists = True
+        elif 'Month' in df.columns:
+            df['MonthYear'] = df['Month'].astype(str)
+            billing_date_exists = True
+        else:
+            billing_date_exists = False
 
         # --- Get list of ZIP Codes ---
         zip_codes = sorted(df['ZIP'].dropna().unique())
@@ -179,23 +188,39 @@ elif page == "View Forecast":
             st.subheader(f"💧 Predicted Water Usage for ZIP {selected_zip}")
             st.metric(label="Predicted Usage (Gallons)", value=f"{predicted_usage:,.0f} Gallons")
 
-            # --- Historical Usage Trend for Selected ZIP ---
-            st.subheader(f"📊 Historical Water Usage Trend for ZIP {selected_zip}")
+            # --- Historical Usage Trend for Selected ZIP + Future Forecast ---
+            st.subheader(f"📊 Historical and Forecasted Water Usage for ZIP {selected_zip}")
 
-            df_zip = df[df['ZIP'] == selected_zip]
-            df_zip = df_zip.dropna(subset=['Billing Date'])
-            df_zip['MonthYear'] = df_zip['Billing Date'].dt.to_period('M').astype(str)
+            if billing_date_exists:
+                df_zip = df[df['ZIP'] == selected_zip]
 
-            usage_trend = df_zip.groupby('MonthYear')['Usage (GAL)'].sum().reset_index()
-
-            if not usage_trend.empty:
+                usage_trend = df_zip.groupby('MonthYear')['Usage (GAL)'].sum().reset_index()
                 usage_trend = usage_trend.sort_values('MonthYear')
+
+                # Generate 6 months into future
+                last_month = datetime.now().replace(day=1)
+                future_months = [(last_month + relativedelta(months=i)).strftime("%Y-%m") for i in range(1, 7)]
+
+                future_preds = [model.predict(X_live)[0]] * 6
+
+                future_df = pd.DataFrame({
+                    'MonthYear': future_months,
+                    'Usage (GAL)': future_preds
+                })
+
+                combined_df = pd.concat([usage_trend, future_df]).reset_index(drop=True)
+                combined_df = combined_df.sort_values('MonthYear')
+
                 st.line_chart(
-                    data=usage_trend.set_index('MonthYear'),
+                    data=combined_df.set_index('MonthYear'),
                     y='Usage (GAL)'
                 )
+
+                st.caption("Historical usage is based on collected billing data. "
+                           "Future usage for the next 6 months is predicted using today's weather conditions and trained forecasting model.")
+
             else:
-                st.warning("No historical data available for this ZIP code.")
+                st.warning("Historical trends cannot be shown because no Billing Date or Month data is available.")
 
             # --- Infrastructure Advisory ---
             st.subheader("🏛️ Infrastructure Advisory Based on Predicted Usage")
